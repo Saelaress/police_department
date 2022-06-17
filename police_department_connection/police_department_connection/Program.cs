@@ -19,9 +19,11 @@ namespace TestDBConnection
 
             connection.Open();
 
+            using var command = connection.CreateCommand();
+
             try
             {
-                databaseInteraction(connection);
+                databaseInteraction(connection, command);
             }
             catch (Exception ex)
             {
@@ -35,7 +37,7 @@ namespace TestDBConnection
 
         }
 
-        static void databaseInteraction (MySqlConnection connection)
+        static void databaseInteraction (MySqlConnection connection, MySqlCommand command)
         {
             Console.WriteLine("Что вы хотите сделать? 1 - Поработать с таблицей, " +
                 "\n2 - Отобразить содержимое уголовного дела с заданным номером," +
@@ -44,16 +46,16 @@ namespace TestDBConnection
             var actionNumber = int.Parse(Console.ReadLine());
 
             if (actionNumber == 1)
-                workWithTable(connection);
+                workWithTable(command);
 
             else if (actionNumber == 2)
             {
-                contentsOfCriminalCase(connection);
+                contentsOfCriminalCase(command);
             }
             
             else if (actionNumber == 3)
             {
-
+                countCrimes(command);
             }
 
             Console.WriteLine("Хотите продолжить работу? 1 - Да, 2 - Нет");
@@ -63,10 +65,10 @@ namespace TestDBConnection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                databaseInteraction(connection);
+                databaseInteraction(connection, command);
         }
 
-        static void workWithTable(MySqlConnection connection)
+        static void workWithTable(MySqlCommand command)
         {
             Console.WriteLine("С какой таблицей вы хотели бы работать? 1 - Сотрудники, 2 - Должности");
             var tableNumber = int.Parse(Console.ReadLine());
@@ -80,21 +82,19 @@ namespace TestDBConnection
             if (operationType < 1 || operationType > 4)
                 throw new Exception("Входная строка имела неверный формат");
 
-            using var command = connection.CreateCommand();
-
             switch (operationType)
             {
                 case 1:
-                    selectQuery(tableNumber, connection);
+                    selectQuery(tableNumber, command);
                     break;
                 case 2:
-                    insertQuery(tableNumber, connection);
+                    insertQuery(tableNumber, command);
                     break;
                 case 3:
-                    updateQuery(tableNumber, connection);
+                    updateQuery(tableNumber, command);
                     break;
                 case 4:
-                    deleteQuery(tableNumber, connection);
+                    deleteQuery(tableNumber, command);
                     break;
             }
 
@@ -105,15 +105,23 @@ namespace TestDBConnection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (next == 1)
-                workWithTable(connection);          
+                workWithTable(command);          
+
         }
 
-        static void contentsOfCriminalCase(MySqlConnection connection)
+        static void contentsOfCriminalCase(MySqlCommand command)
         {
-            Console.WriteLine("Введите номер уголовного дела");
-            var numberCriminalCase = int.Parse(Console.ReadLine());
+            Console.WriteLine("\nОтобразить номера уголовных дел? 1 - Да, 2 - Нет");
+            var display = int.Parse(Console.ReadLine());
 
-            using var command = connection.CreateCommand();
+            if (display < 1 || display > 2)
+                throw new Exception("Входная строка имела неверный формат");
+
+            if (display == 1)
+                displayCriminalCaseNumbers(command);
+
+            Console.WriteLine("\nВведите номер уголовного дела");
+            var numberCriminalCase = int.Parse(Console.ReadLine());
 
             command.CommandText = "select criminal_cases.number, criminal_cases.date_of_initiation, crimes.name, " +
                 "group_concat(' ', evidences.code), " +
@@ -124,7 +132,8 @@ namespace TestDBConnection
                 "police_statements.text, " +
                 "concat(' ', victims.full_name, ', ', victims.date_of_birth) " +
                 "from criminal_cases " +
-                "natural join crimes " +
+                "left join crimes " +
+                "on criminal_cases.idcriminal_case = crimes.idcrime " +
                 "left join evidences " +
                 "on crimes.idcrime = evidences.idcrime " +
                 "left join criminals_to_crimes as cc " +
@@ -151,14 +160,16 @@ namespace TestDBConnection
             while (reader.Read())
             {
                 Console.WriteLine($"Номер: {reader.GetInt32(0)} \n\nДата возбуждения: {reader.GetDateTime(1).ToShortDateString()}.  " +
-                    $"\n\nПреступление: {reader.GetString(2)}. \n\nКод улики: {reader.GetString(3)}. " +
-                    $"\n\nПреступник: {reader.GetString(4)}. \n\nСтатья УК:{reader.GetFloat(5)}. " +
-                    $"\n\nРайон и место преступления: {reader.GetString(6)}. \n\nСотрудник: {reader.GetString(7)}." +
-                    $"\n\nЗаявление: {reader.GetString(8)}. \n\nПострадавший: {reader.GetString(8)}.");
+                    $"\n\nПреступление: {reader.GetValue(2)}. \n\nКод улики: {reader.GetValue(3)}. " +
+                    $"\n\nПреступник: {reader.GetValue(4)}. \n\nСтатья УК:{reader.GetValue(5)}. " +
+                    $"\n\nРайон и место преступления: {reader.GetValue(6)}. \n\nСотрудник: {reader.GetValue(7)}." +
+                    $"\n\nЗаявление: {reader.GetValue(8)}. \n\nПострадавший: {reader.GetValue(8)}.");
             }
 
             if (reader.HasRows == false)
                 Console.WriteLine("Нет таких записей");
+
+            reader.Close();
 
             Console.WriteLine("Хотите получить данные по другому делу? 1 - Да, 2 - Нет");
             var solution = int.Parse(Console.ReadLine());
@@ -167,51 +178,109 @@ namespace TestDBConnection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                contentsOfCriminalCase(connection);
+                contentsOfCriminalCase(command);
         }
 
-        static void selectQuery(int tableNumber, MySqlConnection connection)
+        static void displayCriminalCaseNumbers(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
+            command.CommandText = "select criminal_cases.number from criminal_cases";
 
-            if (tableNumber == 1)
-                DB.selectEmployees(connection);
+            using var reader = command.ExecuteReader();
+            Console.WriteLine($"\nНомера дел: ");
 
-            else if (tableNumber == 2)
-                DB.selectPositions(connection);
+            while (reader.Read())
+            {
+                Console.Write($"{reader.GetInt32(0)}, ");
+            }
         }
 
-        static void insertQuery(int tableNumber, MySqlConnection connection)
+        static void displayCriminalsName(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
+            command.CommandText = "select criminals.full_name from criminals";
 
-            if (tableNumber == 1)
-                DB.insertEmployees(connection);
+            using var reader = command.ExecuteReader();
+            Console.WriteLine($"\n: ");
 
-            else if (tableNumber == 2)
-                DB.insertPositions(connection);
+            while (reader.Read())
+            {
+                Console.Write($"{reader.GetString(0)}, ");
+            }
         }
 
-        static void updateQuery(int tableNumber, MySqlConnection connection)
+        static void countCrimes(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
+            Console.WriteLine("\nОтобразить ФИО преступников? 1 - Да, 2 - Нет");
+            var display = int.Parse(Console.ReadLine());
 
-            if (tableNumber == 1)
-                DB.updateEmployees(connection);
+            if (display < 1 || display > 2)
+                throw new Exception("Входная строка имела неверный формат");
 
-            else if (tableNumber == 2)
-                DB.updatePositions(connection);
+            if (display == 1)
+                displayCriminals(command);
+
+            Console.WriteLine("Введите ФИО преступника");
+            string criminalsFullName = Console.ReadLine();
+
+            command.CommandText = "select count(*) as countCertainCriminal " +
+                "from criminals_to_crimes natural join criminals " +
+                $"where full_name = \"{criminalsFullName}\"; ";
+
+            using var reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                Console.WriteLine($"Количество преступлений: {reader.GetInt64(0)}.");
+            }
+
+            if (reader.HasRows == false)
+                Console.WriteLine("Нет таких записей");
+
+            reader.Close();
+
+            Console.WriteLine("Хотите узнать количество преступлений другого преступника? 1 - Да, 2 - Нет");
+            var solution = int.Parse(Console.ReadLine());
+
+            if (solution < 1 || solution > 2)
+                throw new Exception("Входная строка имела неверный формат");
+
+            if (solution == 1)
+                countCrimes(command);
         }
 
-        static void deleteQuery(int tableNumber, MySqlConnection connection)
+        static void selectQuery(int tableNumber, MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             if (tableNumber == 1)
-                DB.deleteEmployees(connection);
+                DB.selectEmployees(command);
 
             else if (tableNumber == 2)
-                DB.deletePositions(connection);
+                DB.selectPositions(command);
+        }
+
+        static void insertQuery(int tableNumber, MySqlCommand command)
+        {
+            if (tableNumber == 1)
+                DB.insertEmployees(command);
+
+            else if (tableNumber == 2)
+                DB.insertPositions(command);
+        }
+                                                 
+        static void updateQuery(int tableNumber, MySqlCommand command)
+        {
+            if (tableNumber == 1)
+                DB.updateEmployees(command);
+
+            else if (tableNumber == 2)
+                DB.updatePositions(command);
+        }
+                                                 
+        static void deleteQuery(int tableNumber, MySqlCommand command)
+        {
+            if (tableNumber == 1)
+                DB.deleteEmployees(command);
+
+            else if (tableNumber == 2)
+                DB.deletePositions(command);
         }
     }
 }

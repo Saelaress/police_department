@@ -9,7 +9,7 @@ namespace police_department_connection
 {
     class DB
     {
-        public static string stringForSortByFieldEmployees(MySqlCommand command, MySqlConnection connection)
+        public static string stringForSortByFieldEmployees(MySqlCommand command)
         {
             Console.WriteLine("Введите номер поля для сортировки: 1 - ФИО, 2 - Пол, 3 - Номер телефона, 4 - Дата рождения, " +
                         "5 - Должность, 6 - Звание");
@@ -33,12 +33,10 @@ namespace police_department_connection
 
             if (fieldForSorting == 5) //Если выбрано поле с id - должность
             {
-                using var commandPosition = connection.CreateCommand();
-
                 Console.WriteLine("Введите номер должности: ");
-                commandPosition.CommandText = "SELECT idposition, title FROM positions ORDER BY idposition ASC";
+                command.CommandText = "SELECT idposition, title FROM positions ORDER BY idposition ASC";
 
-                using var readerPositions = commandPosition.ExecuteReader();
+                using var readerPositions = command.ExecuteReader();
                 int countEntries = 0;
 
                 while (readerPositions.Read())
@@ -57,12 +55,10 @@ namespace police_department_connection
 
             else if (fieldForSorting == 6) //Если выбрано поле с id - звание
             {
-                using var commandRank = connection.CreateCommand();
-
                 Console.WriteLine("Введите номер звания: ");
-                commandRank.CommandText = "SELECT idrank, title FROM ranks ORDER BY idrank ASC";
+                command.CommandText = "SELECT idrank, title FROM ranks ORDER BY idrank ASC";
 
-                using var readerRanks = commandRank.ExecuteReader();
+                using var readerRanks = command.ExecuteReader();
                 int countEntries = 0;
 
                 while (readerRanks.Read())
@@ -95,7 +91,7 @@ namespace police_department_connection
             if (solution == 1)
             {
                 command.CommandText += " AND ";
-                command.CommandText = stringForSortByFieldEmployees(command, connection);
+                command.CommandText = stringForSortByFieldEmployees(command);
             }
 
             return command.CommandText;
@@ -138,10 +134,8 @@ namespace police_department_connection
             return command.CommandText;
         }
 
-        public static void selectEmployees(MySqlConnection connection)
+        public static void selectEmployees(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             Console.WriteLine("Хотите ли вы отсортировать записи по полю? 1 - Да, 2 - Нет ");
             var sortOfEntries = int.Parse(Console.ReadLine());
 
@@ -153,7 +147,7 @@ namespace police_department_connection
                 command.CommandText = "SELECT full_name, sex, number_of_phone, date_of_birth, positions.title, ranks.title " +
                 "FROM employees NATURAL JOIN positions LEFT JOIN ranks ON ranks.idrank = employees.idrank WHERE ";
 
-                command.CommandText = stringForSortByFieldEmployees(command, connection);
+                command.CommandText = stringForSortByFieldEmployees(command);
             }
 
             else if (sortOfEntries == 2)
@@ -201,20 +195,20 @@ namespace police_department_connection
             if (reader.HasRows == false)
                 Console.WriteLine("Нет таких записей");
 
-            Console.WriteLine("Хотите получить другие данные по должностям? 1 - Да, 2 - Нет");
+            reader.Close();
+
+            Console.WriteLine("Хотите получить другие данные по сотрудникам? 1 - Да, 2 - Нет");
             var solution = int.Parse(Console.ReadLine());
 
             if (solution < 1 || solution > 2)
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                selectEmployees(connection);
+                selectEmployees(command);
         }
 
-        public static void selectPositions(MySqlConnection connection)
+        public static void selectPositions(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             Console.WriteLine("Хотите ли вы отсортировать записи по полю? 1 - Да, 2 - Нет ");
             var sortOfEntries = int.Parse(Console.ReadLine());
 
@@ -231,12 +225,15 @@ namespace police_department_connection
             else if (sortOfEntries == 2)
                 command.CommandText = "SELECT title, salary FROM positions";
 
-            using var reader = command.ExecuteReader();
+            var reader = command.ExecuteReader();
+
             while (reader.Read())
                 Console.WriteLine($"Должность: {reader.GetString(0)}. Зарплата: {reader.GetDecimal(1)} ");
 
             if (reader.HasRows == false)
                 Console.WriteLine("Нет таких записей");
+
+            reader.Close();
 
             Console.WriteLine("Хотите получить другие данные по должностям? 1 - Да, 2 - Нет");
             var solution = int.Parse(Console.ReadLine());
@@ -245,18 +242,15 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                selectPositions(connection);
+                selectPositions(command);
         }
 
-        public static void insertEmployees(MySqlConnection connection)
+        public static void insertEmployees(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             command.CommandText = "INSERT INTO employees (full_name, sex, number_of_phone, date_of_birth, idposition, idrank) "
                                                  + " values (@full_name, @sex, @number_of_phone, @date_of_birth, @idposition, @idrank) ";
 
             //Ввод параметров для вставки
-
             Console.WriteLine("Введите ФИО сотрудника: ");
             command.Parameters.Add("@full_name", MySqlDbType.String).Value = Console.ReadLine();
 
@@ -277,6 +271,8 @@ namespace police_department_connection
 
             int rowCount = command.ExecuteNonQuery();
 
+            command.Parameters.Clear();
+
             Console.WriteLine("Хотите добавить еще одного сотрудника? 1 - Да, 2 - Нет");
             var solution = int.Parse(Console.ReadLine());
 
@@ -284,13 +280,11 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                insertEmployees(connection);
+                insertEmployees(command);
         }
-
-        public static void insertPositions(MySqlConnection connection)
+                                          
+        public static void insertPositions(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             command.CommandText = "INSERT INTO positions (title, salary) "
                                                  + " values (@title, @salary) ";
 
@@ -303,6 +297,8 @@ namespace police_department_connection
 
             int rowCount = command.ExecuteNonQuery();
 
+            command.Parameters.Clear();
+
             Console.WriteLine("Хотите добавить еще одну должность? 1 - Да, 2 - Нет");
             var solution = int.Parse(Console.ReadLine());
 
@@ -310,13 +306,11 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                insertPositions(connection);
+                insertPositions(command);
         }
-
-        public static void updateEmployees(MySqlConnection connection)
+                                          
+        public static void updateEmployees(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             Console.WriteLine("Значение какого поля вы хотите поменять? \n 1 - ФИО, \n 2 - Пол, \n 3 - Номер телефона," +
                 "\n 4 - Дата рождения, \n 5 - Должность, \n 6 - Звание");
 
@@ -337,19 +331,19 @@ namespace police_department_connection
 
             var param1 = employeesAttribute[fieldToUpdate];
 
+
             if (fieldToUpdate == 5) //Если выбрано поле с id - должность
             {
-                using var commandPosition = connection.CreateCommand();
+                using var reader = command.ExecuteReader();
 
                 Console.WriteLine("Введите номер должности: ");
-                commandPosition.CommandText = "SELECT idposition, title FROM positions ORDER BY idposition ASC";
+                command.CommandText = "SELECT idposition, title FROM positions ORDER BY idposition ASC";
 
-                using var readerPositions = commandPosition.ExecuteReader();
                 int countEntries = 0;
 
-                while (readerPositions.Read())
+                while (reader.Read())
                 {
-                    Console.WriteLine($"{readerPositions.GetInt32(0)} - {readerPositions.GetString(1)}");
+                    Console.WriteLine($"{reader.GetInt32(0)} - {reader.GetString(1)}");
                     countEntries++;
                 }
 
@@ -361,21 +355,22 @@ namespace police_department_connection
                 }
 
                 command.CommandText = $"UPDATE employees set {param1} = \"{value1}\" WHERE ";
+
+                reader.Close();
             }
 
             else if (fieldToUpdate == 6) //Если выбрано поле с id - звание
             {
-                using var commandRank = connection.CreateCommand();
+                using var reader = command.ExecuteReader();
 
                 Console.WriteLine("Введите номер звания: ");
-                commandRank.CommandText = "SELECT idrank, title FROM ranks ORDER BY idrank ASC";
+                command.CommandText = "SELECT idrank, title FROM ranks ORDER BY idrank ASC";
 
-                using var readerRanks = commandRank.ExecuteReader();
                 int countEntries = 0;
 
-                while (readerRanks.Read())
+                while (reader.Read())
                 {
-                    Console.WriteLine($"{readerRanks.GetInt32(0)} - {readerRanks.GetString(1)}");
+                    Console.WriteLine($"{reader.GetInt32(0)} - {reader.GetString(1)}");
                     countEntries++;
                 }
 
@@ -385,6 +380,8 @@ namespace police_department_connection
                     throw new Exception("Входная строка имела неверный формат");
                 
                 command.CommandText = $"UPDATE employees set {param1} = \"{value1}\" WHERE ";
+
+                reader.Close();
             }
 
             else
@@ -395,7 +392,7 @@ namespace police_department_connection
                 command.CommandText = $"UPDATE employees set {param1} = \"{value1}\" WHERE ";
             }
 
-            command.CommandText = stringForSortByFieldEmployees(command, connection);
+            command.CommandText = stringForSortByFieldEmployees(command);
 
             Console.WriteLine("Задать промежуток времени для поиска записей? 1 - Да, 2 - Нет ");
             var addTimeInterval = int.Parse(Console.ReadLine());
@@ -427,13 +424,11 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                updateEmployees(connection);
+                updateEmployees(command);
         }
 
-        public static void updatePositions(MySqlConnection connection)
+        public static void updatePositions(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             Console.WriteLine("Значение какого поля вы хотите поменять? \n 1 - Название, \n 2 - Зарплата");
             var fieldToUpdate = int.Parse(Console.ReadLine());
 
@@ -467,16 +462,14 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                updatePositions(connection);
+                updatePositions(command);
         }
 
-        public static void deleteEmployees(MySqlConnection connection)
+        public static void deleteEmployees(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             command.CommandText = $"DELETE FROM employees WHERE ";
 
-            command.CommandText = stringForSortByFieldEmployees(command, connection);
+            command.CommandText = stringForSortByFieldEmployees(command);
 
             Console.WriteLine("Задать промежуток времени для поиска записей? 1 - Да, 2 - Нет ");
             var addTimeInterval = int.Parse(Console.ReadLine());
@@ -508,13 +501,11 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                deleteEmployees(connection);
+                deleteEmployees(command);
         }
 
-        public static void deletePositions(MySqlConnection connection)
+        public static void deletePositions(MySqlCommand command)
         {
-            using var command = connection.CreateCommand();
-
             command.CommandText = $"DELETE FROM positions WHERE ";
 
             command.CommandText = stringForSortByFieldPositions(command);
@@ -530,7 +521,7 @@ namespace police_department_connection
                 throw new Exception("Входная строка имела неверный формат");
 
             if (solution == 1)
-                deletePositions(connection);
+                deletePositions(command);
         }
     }
 }

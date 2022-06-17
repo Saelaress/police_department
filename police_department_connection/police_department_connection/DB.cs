@@ -75,6 +75,13 @@ namespace police_department_connection
                 command.CommandText += $" employees.{param1} = \"{param2}\"";
             }
 
+            else if (fieldForSorting == 2) //Если выбрано поле пол
+            {
+                Console.WriteLine("Введите пол - м или ж: ");
+                var param2 = Console.ReadLine();
+                command.CommandText += $" employees.{param1} = \"{param2}\"";
+            }
+
             else
             {
                 Console.WriteLine("Введите значение поля:");
@@ -246,32 +253,71 @@ namespace police_department_connection
         }
 
         public static void insertEmployees(MySqlCommand command)
-        {
-            command.CommandText = "INSERT INTO employees (full_name, sex, number_of_phone, date_of_birth, idposition, idrank) "
-                                                 + " values (@full_name, @sex, @number_of_phone, @date_of_birth, @idposition, @idrank) ";
-
+        {           
             //Ввод параметров для вставки
             Console.WriteLine("Введите ФИО сотрудника: ");
-            command.Parameters.Add("@full_name", MySqlDbType.String).Value = Console.ReadLine();
+            //command.Parameters.Add("@full_name", MySqlDbType.String).Value = Console.ReadLine();
+            var full_name = Console.ReadLine();
 
             Console.WriteLine("Введите пол сотрудника: м или ж");
-            command.Parameters.Add("@sex", MySqlDbType.VarChar).Value = Console.ReadLine();
+            //command.Parameters.Add("@sex", MySqlDbType.VarChar).Value = Console.ReadLine();
+            var sex = Console.ReadLine();
 
             Console.WriteLine("Введите номер телефона сотрудника: ");
-            command.Parameters.Add("@number_of_phone", MySqlDbType.String).Value = Console.ReadLine();
+            //command.Parameters.Add("@number_of_phone", MySqlDbType.String).Value = Console.ReadLine();
+            var number_of_phone = Console.ReadLine();
 
             Console.WriteLine("Введите дату рождения сотрудника: ");
-            command.Parameters.Add("@date_of_birth", MySqlDbType.Date).Value = DateTime.Parse(Console.ReadLine()).ToString("yyyy'-'MM'-'dd");
+            //command.Parameters.Add("@date_of_birth", MySqlDbType.Date).Value = DateTime.Parse(Console.ReadLine()).ToString("yyyy'-'MM'-'dd");
+            var date_of_birth = Console.ReadLine();
 
-            Console.WriteLine("Введите id должности сотрудника: ");
-            command.Parameters.Add("@idposition", MySqlDbType.Int32).Value = int.Parse(Console.ReadLine());
+            //Ввод должности
+            Console.WriteLine("Введите номер должности: ");
+            command.CommandText = "SELECT idposition, title FROM positions ORDER BY idposition ASC";
 
-            Console.WriteLine("Введите id звания сотрудника: ");
-            command.Parameters.Add("@idrank", MySqlDbType.Int32).Value = int.Parse(Console.ReadLine());
+            var reader = command.ExecuteReader();
+            int countEntries = 0;
+
+            while (reader.Read())
+            {
+                Console.WriteLine($"{reader.GetInt32(0)} - {reader.GetString(1)}");
+                countEntries++;
+            }
+
+            var idposition = int.Parse(Console.ReadLine());
+
+            if (idposition < 1 || idposition > countEntries)
+                throw new Exception("Входная строка имела неверный формат");
+
+            reader.Close();
+
+             //Ввод звания
+             Console.WriteLine("Введите номер звания сотрудника: ");
+             command.CommandText = "SELECT idrank, title FROM ranks ORDER BY idrank ASC";
+
+             reader = command.ExecuteReader();
+             int countEntriesRank = 0;
+
+             while (reader.Read())
+             {
+                 Console.WriteLine($"{reader.GetInt32(0)} - {reader.GetString(1)}");
+                 countEntriesRank++;
+             }
+
+             var idrank = int.Parse(Console.ReadLine());
+
+             if (idrank < 1 || idrank > countEntriesRank)
+                 throw new Exception("Входная строка имела неверный формат");
+
+             reader.Close();
+
+            //Выполняем команду
+            command.CommandText = "INSERT INTO employees (full_name, sex, number_of_phone, date_of_birth, idposition, idrank) "
+                                                 + $" values (\"{full_name}\", '{sex}', {number_of_phone}, \"{date_of_birth}\", {idposition}, {idrank}) ";
 
             int rowCount = command.ExecuteNonQuery();
 
-            command.Parameters.Clear();
+            //command.Parameters.Clear();
 
             Console.WriteLine("Хотите добавить еще одного сотрудника? 1 - Да, 2 - Нет");
             var solution = int.Parse(Console.ReadLine());
@@ -510,6 +556,15 @@ namespace police_department_connection
 
             command.CommandText = stringForSortByFieldPositions(command);
 
+           /* Console.WriteLine("На эту должность есть сотрудники, хотите продолжить удаление? 1 - Да, 2 - Нет");
+            var solution = int.Parse(Console.ReadLine());
+
+            if (solution < 1 || solution > 2)
+                throw new Exception("Входная строка имела неверный формат");
+
+            if (solution == 1) //Продолжить удаление
+                deletePositions(command);
+           */
             int rowCount = command.ExecuteNonQuery();
 
             Console.WriteLine("Количество затронутых строк = " + rowCount);

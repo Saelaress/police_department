@@ -34,7 +34,6 @@ namespace TestDBConnection
                 Console.Write($"{Environment.NewLine}Нажмите любую клавишу для выхода...");
                 Console.ReadKey(true);
             }
-
         }
 
         static void databaseInteraction (MySqlConnection connection, MySqlCommand command)
@@ -111,15 +110,6 @@ namespace TestDBConnection
 
         static void contentsOfCriminalCase(MySqlCommand command)
         {
-            Console.WriteLine("\nОтобразить номера уголовных дел? 1 - Да, 2 - Нет");
-            var display = int.Parse(Console.ReadLine());
-
-            if (display < 1 || display > 2)
-                throw new Exception("Входная строка имела неверный формат");
-
-            if (display == 1)
-                displayCriminalCaseNumbers(command);
-
             Console.WriteLine("\nВведите номер уголовного дела");
             var numberCriminalCase = int.Parse(Console.ReadLine());
 
@@ -181,43 +171,8 @@ namespace TestDBConnection
                 contentsOfCriminalCase(command);
         }
 
-        static void displayCriminalCaseNumbers(MySqlCommand command)
-        {
-            command.CommandText = "select criminal_cases.number from criminal_cases";
-
-            using var reader = command.ExecuteReader();
-            Console.WriteLine($"\nНомера дел: ");
-
-            while (reader.Read())
-            {
-                Console.Write($"{reader.GetInt32(0)}, ");
-            }
-        }
-
-        static void displayCriminalsName(MySqlCommand command)
-        {
-            command.CommandText = "select criminals.full_name from criminals";
-
-            using var reader = command.ExecuteReader();
-            Console.WriteLine($"\n: ");
-
-            while (reader.Read())
-            {
-                Console.Write($"{reader.GetString(0)}, ");
-            }
-        }
-
         static void countCrimes(MySqlCommand command)
         {
-            Console.WriteLine("\nОтобразить ФИО преступников? 1 - Да, 2 - Нет");
-            var display = int.Parse(Console.ReadLine());
-
-            if (display < 1 || display > 2)
-                throw new Exception("Входная строка имела неверный формат");
-
-            if (display == 1)
-                displayCriminals(command);
-
             Console.WriteLine("Введите ФИО преступника");
             string criminalsFullName = Console.ReadLine();
 
